@@ -299,6 +299,21 @@ private let keyToSpecialKeyMapping: [KeyboardShortcuts.Key: SpecialKey] = [
 	.keypadPlus: .keypadPlus
 ]
 
+	// Support displaying modifier keys when used as primary keys (e.g., "Shift").
+	// This only affects presentableDescription and does not change behavior for SwiftUI/AppKit key equivalents.
+	private let modifierKeyToSymbolMapping: [KeyboardShortcuts.Key: String] = [
+		.shift: "⇧",
+		.rightShift: "⇧",
+		.control: "⌃",
+		.rightControl: "⌃",
+		.option: "⌥",
+		.rightOption: "⌥",
+		.command: "⌘",
+		.rightCommand: "⌘",
+		.function: UnicodeSymbols.functionKey,
+		.capsLock: "⇪",
+	]
+
 extension SpecialKey {
 	fileprivate var presentableDescription: String {
 		switch self {
@@ -415,6 +430,11 @@ extension SpecialKey {
 			"+\u{20e3}"
 		}
 	}
+
+		// Convenience to include modifier prefix without duplicating logic in callers.
+		fileprivate func presentableDescription(with modifiers: NSEvent.ModifierFlags) -> String {
+			modifiers.presentableDescription + presentableDescription
+		}
 
 	@available(macOS 11.0, *)
 	fileprivate var swiftUIKeyEquivalent: SwiftUI.KeyEquivalent? {
@@ -731,13 +751,17 @@ extension KeyboardShortcuts.Shortcut: CustomStringConvertible {
 
 	@MainActor
 	var presentableDescription: String {
-		if
-			let key,
-			let specialKey = keyToSpecialKeyMapping[key]
-		{
-			return modifiers.presentableDescription + specialKey.presentableDescription
-		}
+			if let key {
+				// Special keys (F1, arrows, etc.)
+				if let specialKey = keyToSpecialKeyMapping[key] {
+					return specialKey.presentableDescription(with: modifiers)
+				}
 
+				// Modifier keys used as primary keys (e.g., Shift, Control, Option, Command, Fn, Caps Lock)
+				if let symbol = modifierKeyToSymbolMapping[key] {
+					return symbol
+				}
+			}
 		return modifiers.presentableDescription + String(keyToCharacter() ?? "�").capitalized
 	}
 
